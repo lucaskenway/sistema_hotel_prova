@@ -60,13 +60,13 @@ backend/
 │
 ├── src/
 │   ├── routes/
+│   ├── controllers/
+│   ├── models/
 │   ├── middlewares/
 │   ├── database/
 │   ├── utils/
 │   ├── app.ts
 │   └── server.ts
-│
-├── prisma/
 │
 ├── Dockerfile
 └── package.json
@@ -126,11 +126,11 @@ Não será a infraestrutura principal do projeto.
 
 User:
 
-* id;
+* id (UUID);
 * name;
-* email;
+* email (Unique);
 * password;
-* role.
+* role (ADMIN, RECEPTIONIST).
 
 ---
 
@@ -138,22 +138,29 @@ User:
 
 ### Funcionalidades
 
+* cadastrar categoria de quarto;
 * cadastrar quarto;
 * listar quartos;
 * atualizar quarto;
 * remover quarto;
 * listar quartos disponíveis.
 
-### Entidade
+### Entidades
+
+RoomCategory (Nova):
+
+* id (UUID);
+* name;
+* capacity;
+* pricePerNight.
 
 Room:
 
-* id;
-* number;
+* id (UUID);
+* number (Unique);
 * floor;
-* capacity;
-* pricePerNight;
-* status.
+* status;
+* categoryId.
 
 ### Status
 
@@ -178,11 +185,11 @@ Room:
 
 Guest:
 
-* id;
+* id (UUID);
 * fullName;
-* cpf;
+* cpf (Unique);
 * phone;
-* email.
+* email (Unique).
 
 ---
 
@@ -201,12 +208,14 @@ Guest:
 
 Reservation:
 
-* id;
+* id (UUID);
 * guestId;
 * roomId;
+* userId;
 * checkInDate;
 * checkOutDate;
-* status.
+* status;
+* totalAmount.
 
 ### Status
 
@@ -302,9 +311,10 @@ PostgreSQL.
 
 # Relacionamentos
 
-```txt
 Guest 1:N Reservation
 Room 1:N Reservation
+RoomCategory 1:N Room
+User 1:N Reservation
 ```
 
 ---
@@ -337,7 +347,7 @@ O projeto busca demonstrar:
 
 ## Fase 2
 
-* Prisma ORM;
+* Sequelize ORM;
 * autenticação JWT.
 
 ---
