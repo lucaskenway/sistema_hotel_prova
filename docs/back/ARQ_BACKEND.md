@@ -64,9 +64,10 @@ sistema_gestao_hotel/           ← raiz do repositório
 │   ├── app.js                   ← Inicializador (dotenv.config + initRelations)
 │   └── config.js                ← Constantes globais (ex: CONSTANTS.DIR)
 │
-├── middlewares/                 ← Middlewares globais (Auth, Tenant)
+├── middlewares/                 ← Middlewares de Auth, Tenant e RBAC
 │   ├── auth.middleware.js
-│   └── tenant.middleware.js
+│   ├── tenant.middleware.js
+│   └── role.middleware.js
 │
 ├── docs/                        ← Documentação do projeto
 ├── db/                          ← Schema SQL de referência
@@ -262,6 +263,32 @@ export default function initRelations() {
 
 ---
 
+### Middlewares
+
+Os middlewares ficam em `middlewares/` e são aplicados **por rota** diretamente no router, não globalmente.
+
+| Middleware | Arquivo | Responsabilidade |
+|-----------|---------|------------------|
+| Auth | `auth.middleware.js` | Valida JWT → injeta `request.user = { userId, role, tenantId }` |
+| Tenant | `tenant.middleware.js` | Verifica tenant `ACTIVE` → injeta `request.tenantId` |
+| Role | `role.middleware.js` | Controla acesso por papel via `requireRole(...roles)` (HOF) |
+
+Cadeia de execução em rotas protegidas:
+
+```
+Request
+  └── authMiddleware           ← verifica JWT, injeta request.user
+        └── tenantMiddleware   ← verifica tenant ACTIVE, injeta request.tenantId
+              └── requireRole  ← verifica request.user.role (somente em rotas restritas)
+                    └── Controller
+```
+
+> Rotas públicas (`POST /auth/login`, `POST /auth/register`) **não** aplicam nenhum middleware.
+
+Para o plano completo — código de cada middleware, tabela de permissões por rota e decisões de design — veja [docs/back/MIDDLEWARES.md](MIDDLEWARES.md).
+
+---
+
 ### Router — IIFE por domínio
 
 Cada roteador de domínio em `routes/apis/` é uma **IIFE** que retorna o `Router`. O `express.json()` é aplicado **uma única vez** no `routes/router.js` principal, não em cada sub-roteador:
@@ -269,16 +296,17 @@ Cada roteador de domínio em `routes/apis/` é uma **IIFE** que retorna o `Route
 ```javascript
 // routes/apis/roomRouter.js
 import { Router } from 'express';
-import authMiddleware   from '../../middlewares/auth.middleware.js';
-import tenantMiddleware from '../../middlewares/tenant.middleware.js';
-import ListRoomController  from '../../app/Controllers/RoomApi/ListRoomController.js';
+import authMiddleware    from '../../middlewares/auth.middleware.js';
+import tenantMiddleware  from '../../middlewares/tenant.middleware.js';
+import { requireRole }   from '../../middlewares/role.middleware.js';
+import ListRoomController   from '../../app/Controllers/RoomApi/ListRoomController.js';
 import CreateRoomController from '../../app/Controllers/RoomApi/CreateRoomController.js';
 
 export default (() => {
     const router = Router();
 
-    router.get('/',    authMiddleware, tenantMiddleware, ListRoomController);
-    router.post('/',   authMiddleware, tenantMiddleware, CreateRoomController);
+    router.get('/',  authMiddleware, tenantMiddleware, ListRoomController);
+    router.post('/', authMiddleware, tenantMiddleware, requireRole('ADMIN'), CreateRoomController);
     // ...
 
     return router;
