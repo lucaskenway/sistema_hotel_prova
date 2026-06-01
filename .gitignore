@@ -1,13 +1,33 @@
-# Dependências
+# Node
 node_modules/
+npm-debug.log
+yarn.lock
+package-lock.json
 
-# Ambiente
+# Environment
 .env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+*.tsbuildinfo
 
 # Logs
 *.log
-npm-debug.log*
+logs/
 
-# Sistema
-.DS_Store
-Thumbs.db
+# Temporary
+tmp/
+temp/
