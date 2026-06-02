@@ -188,6 +188,24 @@ const options = {
                     { in: 'path', name: 'roomId', required: true, schema: { type: 'string', format: 'uuid' } }
                 ],
                 delete: { tags: ['Reservas — N:N (Pivô)'], summary: 'Remove quarto da reserva (tabela pivô)', responses: { 204: { description: 'Desvinculado' } } }
+            },
+            '/payments': {
+                get:  { tags: ['Pagamentos'], summary: 'Lista pagamentos do tenant', responses: { 200: { description: 'OK' } } },
+                post: { tags: ['Pagamentos'], summary: 'Registra novo pagamento', requestBody: { required: true, content: { 'application/json': { schema: {
+                    type: 'object', required: ['reservation_id', 'amount', 'method'],
+                    properties: {
+                        reservation_id: { type: 'string', format: 'uuid' },
+                        amount:         { type: 'number', example: 300.00 },
+                        method:         { type: 'string', enum: ['PIX', 'CARTAO_CREDITO', 'CARTAO_DEBITO', 'DINHEIRO'], example: 'PIX' },
+                        paid_at:        { type: 'string', format: 'date-time' }
+                    }
+                }}}} , responses: { 201: { description: 'Pagamento registrado' } } }
+            },
+            '/payments/{id}': {
+                parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }],
+                get:    { tags: ['Pagamentos'], summary: 'Busca pagamento por ID', responses: { 200: { description: 'OK' }, 404: { description: 'Não encontrado' } } },
+                put:    { tags: ['Pagamentos'], summary: 'Atualiza pagamento',      responses: { 200: { description: 'OK' } } },
+                delete: { tags: ['Pagamentos'], summary: 'Remove pagamento',        responses: { 204: { description: 'OK' } } }
             }
         }
     },

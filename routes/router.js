@@ -8,6 +8,7 @@ import roomCategoryRouter from './apis/roomCategoryRouter.js';
 import roomRouter         from './apis/roomRouter.js';
 import guestRouter        from './apis/guestRouter.js';
 import reservationRouter  from './apis/reservationRouter.js';
+import paymentRouter      from './apis/paymentRouter.js';
 
 const router = Router();
 
@@ -39,5 +40,6 @@ router.use('/room-categories',  roomCategoryRouter);
 router.use('/rooms',            roomRouter);
 router.use('/guests',           guestRouter);
 router.use('/reservations',     reservationRouter);
+router.use('/payments',         paymentRouter);
 
 export default router;

@@ -18,6 +18,9 @@ COPY . .
 # Remove pastas que não pertencem ao runtime
 RUN rm -rf docker/ docs/ db/ modelagem/ queries/ scripts/ seed/ .gitignore
 
+# Segurança: não executar como root
+USER node
+
 EXPOSE 3000
 
 CMD ["node", "_web.js"]
