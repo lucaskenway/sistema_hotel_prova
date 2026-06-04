@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "start": "node _web.js",
-    "dev": "nodemon _web.js"
+    "dev": "nodemon _web.js",
+    "setup:db": "psql -h ${POSTGRES_HOST:-localhost} -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-gestao_hotel} -f db/schema.sql",
+    "seed:db": "psql -h ${POSTGRES_HOST:-localhost} -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-gestao_hotel} -f seed/seed_hotels.sql"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
