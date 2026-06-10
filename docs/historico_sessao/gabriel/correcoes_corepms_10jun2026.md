@@ -1,4 +1,4 @@
-### 2026-06-10 — Claude (Sonnet 4.5)
+### 10/06/2026 — Gabriel (Claude Sonnet 4.5)
 
 - **Branch:** `develop` (criada nesta sessão a partir de `fix/sincronizar-schema-sql-com-sequelize`)
 - **Horário:** sessão única
