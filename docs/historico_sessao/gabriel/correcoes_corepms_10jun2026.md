@@ -44,6 +44,20 @@
 
 ---
 
+#### Code review pós-implementação (mesma sessão)
+
+Code review de alto esforço identificou 5 bugs adicionais, todos corrigidos:
+
+| # | Bug | Branch de correção |
+|---|-----|--------------------|
+| R1 | `UpdateReservationController` aceitava mudança de quarto/datas sem checar conflito | `fix/update-reservation-conflict-check` |
+| R2 | `checkReservationConflict` sem `tenant_id` — risco de informação cross-tenant | `fix/update-reservation-conflict-check` |
+| R3 | `CheckInController` / `CheckOutController` sem transação Sequelize | `fix/checkin-checkout-transactions` |
+| R4 | `RegisterController` sem tratamento de `UniqueConstraintError` → HTTP 500 | `fix/register-email-constraint-handling` |
+| R5 | `CancelReservationController` usava blocklist (fail-open) → substituído por allowlist | `fix/cancel-reservation-allowlist` |
+
+---
+
 #### Pendências
 
 | # | Pendência | Prioridade | Observação |
