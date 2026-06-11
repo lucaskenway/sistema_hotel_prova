@@ -2,9 +2,12 @@
 
 > Sistema acadêmico de gestão hoteleira com foco em arquitetura backend, banco de dados relacional e infraestrutura moderna.
 
-**Versão**: 0.1.0 (Demo/Scaffold)  
-**Status**: 🟡 Parcialmente pronto — Banco + Infraestrutura OK, Endpoints em desenvolvimento  
+**Versão**: 1.0.0  
+**Status**: ✅ Backend funcional — API REST, Docker (Nginx + Node + PostgreSQL), Swagger  
 **Data**: Junho 2026
+
+> **Nota:** O backend vive na **raiz do repositório** (não existe subpasta `backend/`).  
+> Para documentação operacional resumida, consulte também [`README.md`](./README.md).
 
 ---
 
@@ -31,9 +34,9 @@
 
 Sistema backend de gestão hoteleira desenvolvido como projeto acadêmico (TCC) para demonstrar:
 
-- ✅ APIs REST em Node.js + Express + TypeScript
+- ✅ APIs REST em Node.js + Express (JavaScript ESModules)
 - ✅ Modelagem relacional com PostgreSQL
-- ✅ ORM Sequelize com migrations versionadas
+- ✅ ORM Sequelize com sync via `command.js migrate`
 - ✅ Autenticação JWT + bcrypt
 - ✅ Docker Compose para desenvolvimento
 - ✅ Escalabilidade com Docker Swarm (futuro)
@@ -71,18 +74,16 @@ Altera status do quarto para AVAILABLE
 
 | Camada | Tecnologia | Versão |
 |--------|-----------|--------|
-| **Runtime** | Node.js | 20.x LTS+ |
-| **Linguagem** | TypeScript | 5.8.3 |
-| **Framework Web** | Express | 5.2.1 |
-| **ORM** | Sequelize | 6.37.8 |
+| **Runtime** | Node.js | 24.x (Alpine no Docker) |
+| **Linguagem** | JavaScript (ESModules) | `"type": "module"` |
+| **Framework Web** | Express | 4.x |
+| **ORM** | Sequelize | 6.37.x |
 | **Banco de Dados** | PostgreSQL | 17 |
-| **Autenticação** | JWT | jsonwebtoken 9.0.3 |
-| **Hashing** | bcrypt | 6.0.0 |
-| **CORS** | cors | 2.8.6 |
-| **Variáveis de Ambiente** | dotenv | 17.4.2 |
-| **CLI Migrations** | sequelize-cli | 6.6.5 |
-| **Dev Server** | ts-node-dev | 2.0.0 |
-| **Build** | TypeScript Compiler (tsc) | 5.8.3 |
+| **Autenticação** | JWT | jsonwebtoken 9.x |
+| **Hashing** | bcryptjs | 2.x |
+| **Variáveis de Ambiente** | dotenv | 16.x |
+| **Documentação API** | Swagger UI | `/api-docs` |
+| **Dev Server** | nodemon | 3.x |
 
 ---
 
@@ -119,7 +120,7 @@ cd sistema_hotel_prova
 ### Passo 2: Instalar Dependências
 
 ```bash
-cd backend
+# Na raiz do repositório
 npm install
 ```
 
@@ -142,36 +143,32 @@ node --version
 ### Passo 1: Copiar Arquivo de Exemplo
 
 ```bash
-# Na pasta backend/
+# Na raiz do repositório
 cp .env.example .env
 ```
 
 ### Passo 2: Editar `.env`
 
-Abra `backend/.env` e configure:
+Abra `.env` na raiz e configure:
 
 ```env
-# ========== DATABASE ==========
-DB_HOST=127.0.0.1
-DB_PORT=5432
-DB_NAME=hotel_db
-DB_USER=hotel_user
-DB_PASSWORD=hotel_pass
-
-# ========== SERVER ==========
-PORT=3000
+# Configurações do Servidor
 NODE_ENV=development
+NODE_WEB_PORT=3000
 
-# ========== JWT ==========
-JWT_SECRET=seu-secret-super-seguro-aqui-min-32-caracteres
-JWT_EXPIRY=24h
+# Conexão com o PostgreSQL
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=gestao_hotel
+POSTGRES_USER=hotel_user
+POSTGRES_PASSWORD=hotel_password
 
-# ========== LOGGING ==========
-LOG_LEVEL=debug
+# Segurança
+JWT_SECRET=sua_chave_secreta_aqui
 ```
 
 **⚠️ IMPORTANTE — Segurança:**
-- Altere `JWT_SECRET` para uma string forte (mínimo 32 caracteres)
+- Altere `JWT_SECRET` para uma string forte
 - Nunca commite `.env` no Git (já está em `.gitignore`)
 - Use valores diferentes entre dev/staging/produção
 
@@ -179,16 +176,14 @@ LOG_LEVEL=debug
 
 | Variável | Descrição | Padrão |
 |----------|-----------|--------|
-| `DB_HOST` | Host do PostgreSQL | `127.0.0.1` |
-| `DB_PORT` | Porta do PostgreSQL | `5432` |
-| `DB_NAME` | Nome do banco de dados | `hotel_db` |
-| `DB_USER` | Usuário do PostgreSQL | `hotel_user` |
-| `DB_PASSWORD` | Senha do PostgreSQL | `hotel_pass` |
-| `PORT` | Porta do servidor backend | `3000` |
+| `POSTGRES_HOST` | Host do PostgreSQL | `localhost` |
+| `POSTGRES_PORT` | Porta do PostgreSQL | `5432` |
+| `POSTGRES_DB` | Nome do banco de dados | `gestao_hotel` |
+| `POSTGRES_USER` | Usuário do PostgreSQL | `hotel_user` |
+| `POSTGRES_PASSWORD` | Senha do PostgreSQL | `hotel_password` |
+| `NODE_WEB_PORT` | Porta do servidor backend | `3000` |
 | `NODE_ENV` | Ambiente (dev/staging/prod) | `development` |
 | `JWT_SECRET` | Chave secreta para assinar JWTs | (obrigatório) |
-| `JWT_EXPIRY` | Tempo de expiração do JWT | `24h` |
-| `LOG_LEVEL` | Nível de logs (debug/info/warn/error) | `debug` |
 
 ---
 
@@ -196,133 +191,75 @@ LOG_LEVEL=debug
 
 ### Opção A: Com Docker Compose (Recomendado)
 
-Ideal para desenvolvimento local sem instalar PostgreSQL.
+Stack completa: PostgreSQL + Node.js + Nginx (porta 80).
 
-#### 1. Inicie o PostgreSQL
-
-```bash
-# Na pasta raiz do projeto
-docker-compose up -d
-```
-
-Saída esperada:
-```
-[+] Running 2/2
- ✔ Network sistema_hotel_prova_default  Created
- ✔ Container hotel_postgres             Started
-```
-
-#### 2. Verifique a Conexão
+#### 1. Subir os containers
 
 ```bash
-# Espere 5 segundos para o PostgreSQL estar pronto
-sleep 5
-
-# Teste a conexão (opcional)
-docker exec -it hotel_postgres psql -U hotel_user -d hotel_db -c "SELECT NOW();"
+# Na raiz do repositório
+docker compose up --build
 ```
 
-#### 3. Execute as Migrations
+#### 2. Executar migrations
+
+Em outro terminal, com os containers rodando:
 
 ```bash
-cd backend
-npm run migrate
+docker compose exec node_web node command.js migrate
 ```
 
-Saída esperada:
-```
-== 20260521-create-schema: migrating...
-== 20260521-create-schema: migrated in 2.345s
-== 20260522-add-unique-constraint-hotels-name: migrating...
-== 20260522-add-unique-constraint-hotels-name: migrated in 0.234s
-```
-
-#### 4. Execute os Seeders (dados de demo)
+#### 3. (Opcional) Carregar dados de seed
 
 ```bash
-npm run seed
+docker compose exec node_web npm run seed:db
 ```
 
-Saída esperada:
-```
-== 20260521-seed-hotels: seeding...
-== 20260521-seed-hotels: seeded in 0.567s
-```
+#### 4. Acessar a API
 
-#### 5. Inicie o Servidor em Modo Desenvolvimento
-
-```bash
-npm run dev
-```
-
-Saída esperada:
-```
-✅ PostgreSQL conectado
-🚀 Servidor rodando na porta 3000
-```
-
-#### 6. Teste o Servidor
-
-Em outro terminal:
-```bash
-curl http://localhost:3000
-
-# Resposta esperada:
-# {"status":"online","project":"Sistema Hotel API"}
-```
-
-✅ **Sucesso!** O backend está rodando.
+- API: `http://localhost`
+- Swagger: `http://localhost/api-docs`
 
 ---
 
-### Opção B: Com PostgreSQL Local
+### Opção B: Desenvolvimento local (sem Docker)
 
-Se preferir instalar PostgreSQL localmente em vez de Docker.
-
-#### 1. Inicie o PostgreSQL
+#### 1. Instalar dependências e configurar `.env`
 
 ```bash
-# macOS (com Homebrew)
-brew services start postgresql@15
-
-# Linux (Debian/Ubuntu)
-sudo systemctl start postgresql
-
-# Windows
-# Use PostgreSQL Application (já vem com PgAdmin) ou cmd:
-pg_ctl -D "C:\Program Files\PostgreSQL\15\data" start
+npm install
+cp .env.example .env
+# Edite .env com credenciais do PostgreSQL local
 ```
 
-#### 2. Crie o Banco e o Usuário
+#### 2. Executar migrations
 
 ```bash
-# Conecte ao PostgreSQL
-psql -U postgres
-
-# Dentro do psql:
-CREATE USER hotel_user WITH PASSWORD 'hotel_pass';
-CREATE DATABASE hotel_db OWNER hotel_user;
-ALTER USER hotel_user CREATEDB;
-\q
+node command.js migrate
 ```
 
-#### 3. Execute as Migrations
+#### 3. (Opcional) Carregar seed
 
 ```bash
-cd backend
-npm run migrate
+npm run seed:db
 ```
 
-#### 4. Execute os Seeders
-
-```bash
-npm run seed
-```
-
-#### 5. Inicie o Servidor
+#### 4. Iniciar o servidor
 
 ```bash
 npm run dev
+# ou: node _web.js
+```
+
+Saída esperada:
+```
+✅ Conexão com o banco de dados estabelecida.
+🚀 Servidor rodando na porta 3000
+```
+
+#### 5. Teste o servidor
+
+```bash
+curl http://localhost:3000
 ```
 
 ---
@@ -330,8 +267,7 @@ npm run dev
 ### Verificação Rápida
 
 ```bash
-# Terminal 1: Inicie o servidor
-cd backend
+# Terminal 1: Inicie o servidor (na raiz)
 npm run dev
 
 # Terminal 2: Teste os endpoints
@@ -485,111 +421,63 @@ Registros de pagamento.
 
 ### Migrations
 
-Migrations versionadas garantem versionamento do schema:
+O schema é criado/atualizado via Sequelize sync:
 
 ```bash
-# Listar migrations
-ls -la backend/src/database/migrations/
-
-# 20260521-create-schema.js          ← Schema principal (7 tabelas)
-# 20260522-add-unique-constraint... ← Ajustes incrementais
+node command.js migrate
 ```
 
-### Seeders
+### Seed
 
 Dados iniciais para desenvolvimento:
 
 ```bash
-npm run seed
-```
-
-Cria:
-- 1 hotel: "Hotel Aurora"
-- 2 categorias: "Standard" (R$120/noite), "Suite" (R$320/noite)
-- 1 quarto: #101 (Standard, piso 1)
-- 1 usuário admin: admin@aurora.example
-- 1 hóspede demo: João Silva (CPF 11122233344)
-
-### Desfazer Tudo
-
-```bash
-# Remove todas as migrations
-npm run migrate:undo
-
-# Recria do zero
-npm run migrate
-npm run seed
+npm run seed:db
 ```
 
 ---
 
 ## 🐳 Docker
 
-### Docker Compose (Desenvolvimento)
+### Docker Compose (Produção / Demo)
 
-#### Iniciar
+Stack com 3 serviços: `postgres`, `node_web`, `nginx`.
 
 ```bash
-docker-compose up -d
+docker compose up --build
 ```
 
-Inicia:
-- PostgreSQL 17 em `localhost:5432`
-- Volume persistente: `postgres_data`
+| Serviço | Descrição | Porta externa |
+|---------|-----------|---------------|
+| `postgres` | PostgreSQL 17 | (interna) |
+| `node_web` | API Node.js | (interna) |
+| `nginx` | Proxy reverso | **80** |
+
+Fluxo: `Cliente → Nginx (:80) → node_web (:3000) → postgres (:5432)`
+
+#### Migrations no container
+
+```bash
+docker compose exec node_web node command.js migrate
+```
 
 #### Parar
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
-#### Ver Logs
+#### Ver logs
 
 ```bash
-docker-compose logs postgres -f
-```
-
-#### Acessar o PostgreSQL via Docker
-
-```bash
-docker exec -it hotel_postgres psql -U hotel_user -d hotel_db
-```
-
-Dentro do psql:
-```sql
-\dt                          -- Listar tabelas
-SELECT COUNT(*) FROM users;  -- Contar usuários
-\q                           -- Sair
-```
-
-### Docker Compose com Backend (Futuro)
-
-Quando os endpoints estiverem prontos, o arquivo será expandido para incluir o backend:
-
-```yaml
-services:
-  postgres:
-    # ... (conforme atual)
-
-  backend:
-    build: ./backend
-    ports:
-      - "3000:3000"
-    environment:
-      DB_HOST: postgres
-      DB_USER: hotel_user
-      DB_PASSWORD: hotel_pass
-      DB_NAME: hotel_db
-      JWT_SECRET: ${JWT_SECRET}
-    depends_on:
-      - postgres
+docker compose logs -f
 ```
 
 ---
 
 ## 📡 API & Endpoints
 
-⚠️ **Status**: Os endpoints documentados abaixo ainda **não estão implementados**. Esta seção define o contrato esperado.
+⚠️ **Status**: Endpoints implementados. Consulte [`README.md`](./README.md) e Swagger em `/api-docs` para a lista completa.
 
 ### Base URL
 
@@ -795,49 +683,32 @@ Response 200:
 
 ## 🏗️ Arquitetura
 
-### Estrutura de Pastas (Planejada)
+### Estrutura de Pastas (Raiz do Repositório)
 
 ```
-backend/
-├── src/
-│   ├── app.ts                    ← Configuração Express
-│   ├── server.ts                 ← Inicialização
-│   ├── config/
-│   │   └── database.ts           ← Conexão Sequelize
-│   ├── models/                   ← ORM Models
-│   │   ├── User.ts
-│   │   ├── Room.ts
-│   │   ├── Reservation.ts
-│   │   └── ...
-│   ├── controllers/              ← Lógica de requisições (❌ TODO)
-│   │   ├── AuthController.ts
-│   │   ├── RoomController.ts
-│   │   └── ...
-│   ├── services/                 ← Lógica de negócio (❌ TODO)
-│   │   ├── AuthService.ts
-│   │   ├── ReservationService.ts
-│   │   └── ...
-│   ├── middlewares/              ← Middlewares Express (❌ TODO)
-│   │   ├── authMiddleware.ts
-│   │   └── errorHandler.ts
-│   ├── routes/                   ← Definição de rotas (❌ TODO)
-│   │   ├── auth.routes.ts
-│   │   ├── rooms.routes.ts
-│   │   └── ...
-│   ├── database/
-│   │   ├── migrations/           ← Versionamento de schema
-│   │   ├── seeders/              ← Dados iniciais
-│   │   └── config.js             ← Config Sequelize CLI
-│   └── utils/                    ← Utilitários (❌ TODO)
-│       ├── validators.ts
-│       └── errorHandler.ts
-├── dist/                         ← Build compilado (npm run build)
-├── .env.example                  ← Template de variáveis
-├── .sequelizerc                  ← Config CLI
+sistema_hotel_prova/           ← raiz (backend vive aqui)
+├── _web.js                    ← Entrypoint Express
+├── command.js                 ← CLI: node command.js migrate
 ├── package.json
-├── tsconfig.json
-└── README.md
+├── docker-compose.yml
+├── Dockerfile
+├── app/
+│   ├── Controllers/             ← Single-Action Controllers
+│   └── Models/                  ← Modelos Sequelize
+├── database/
+│   ├── connections/sequelize.js
+│   └── relations.js
+├── routes/
+│   ├── apis/                    ← Routers por domínio
+│   └── router.js
+├── bootstrap/
+├── middlewares/
+├── config/swagger.js
+├── db/schema.sql                ← Schema SQL de referência
+└── seed/seed_hotels.sql
 ```
+
+Detalhes completos em [`docs/back/ARQ_BACKEND.md`](./docs/back/ARQ_BACKEND.md).
 
 ### Padrões Arquiteturais
 
@@ -869,7 +740,7 @@ Response (JSON com resultado ou erro)
 
 ## 🔐 Fluxo de Autenticação
 
-⚠️ **Status**: Ainda não implementado. Este é o fluxo esperado.
+⚠️ **Status**: Implementado. JWT com expiração de 8 horas; payload `{ userId, role, tenantId }`.
 
 ### Login com JWT
 
@@ -913,30 +784,25 @@ app.get('/rooms',
 
 ### ✅ Concluído (Fase 1)
 
-- [x] Setup Express + TypeScript
+- [x] Setup Express + JavaScript ESModules
 - [x] Configuração Sequelize + PostgreSQL
-- [x] Migrations (schema + dados)
-- [x] Seeders (dados de demo)
-- [x] Docker Compose com PostgreSQL
+- [x] Sync de schema via `command.js migrate`
+- [x] Seed de dados de demo
+- [x] Docker Compose (PostgreSQL + Node + Nginx)
+- [x] Controllers, rotas e middlewares de auth JWT
+- [x] Swagger/OpenAPI em `/api-docs`
 
 ### 🟡 Em Progresso (Fase 2)
 
-- [ ] Implementar controllers
-- [ ] Implementar services
-- [ ] Implementar rotas
-- [ ] Implementar middlewares de auth
+- [ ] Testes unitários e e2e
 - [ ] Validações de entrada (schemas)
-- [ ] Testes unitários
+- [ ] CI/CD (GitHub Actions)
 
 ### 🔴 Planejado (Fase 3)
 
-- [ ] Swagger/OpenAPI
-- [ ] Docker Compose com backend
 - [ ] Docker Swarm (demo)
 - [ ] Kubernetes (demo)
 - [ ] Frontend (React/Next.js)
-- [ ] CI/CD (GitHub Actions)
-- [ ] Testes e2e
 
 ### 📊 Checklist por Módulo
 
@@ -976,12 +842,12 @@ app.get('/rooms',
 ```bash
 # 1. Fork e clone
 git clone https://github.com/SEU_USUARIO/sistema_hotel_prova.git
-cd sistema_hotel_prova/backend
+cd sistema_hotel_prova
 
 # 2. Crie uma branch
 git checkout -b feat/novo-endpoint
 
-# 3. Instale deps
+# 3. Instale deps (na raiz)
 npm install
 
 # 4. Desenvolvimento
@@ -1037,15 +903,12 @@ pg_ctl -D /usr/local/var/postgres start
 
 **Solução**:
 ```bash
-# Verifique .env:
-cat .env | grep DB_
+# Verifique .env na raiz:
+cat .env | grep POSTGRES_
 
-# Se usando Docker:
-docker-compose down
-docker volume rm sistema_hotel_prova_postgres_data
-docker-compose up -d
-npm run migrate
-npm run seed
+# Recrie o banco e rode migrations:
+node command.js migrate
+npm run seed:db
 ```
 
 ### Problema: "relation 'hotels' does not exist"
@@ -1054,9 +917,8 @@ npm run seed
 
 **Solução**:
 ```bash
-cd backend
-npm run migrate
-npm run seed
+node command.js migrate
+npm run seed:db
 ```
 
 ### Problema: "Cannot find module 'cors'"
@@ -1104,5 +966,5 @@ ISC — Veja [LICENSE](LICENSE) para detalhes.
 
 ---
 
-**Última atualização**: 01 Junho 2026  
-**Versão**: 0.1.0 (Demo/Scaffold)
+**Última atualização**: 11 Junho 2026  
+**Versão**: 1.0.0

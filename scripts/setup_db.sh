@@ -23,7 +23,6 @@ sudo -u postgres psql -d hotel_db -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public 
 sudo -u postgres psql -d hotel_db -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
 sudo -u postgres psql -d hotel_db -c "CREATE EXTENSION IF NOT EXISTS btree_gist;"
 
-cd backend
 npm install
-npm run migrate
-npm run seed
+node command.js migrate
+npm run seed:db
