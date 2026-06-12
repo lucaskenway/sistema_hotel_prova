@@ -1,0 +1,27 @@
+# Normalizar line endings para LF em todo o repositório
+# Evita diff noise CRLF vs LF entre edições Windows e Linux/WSL
+
+* text=auto eol=lf
+
+# Forçar LF explícito para código e config
+*.js        text eol=lf
+*.mjs       text eol=lf
+*.json      text eol=lf
+*.yaml      text eol=lf
+*.yml       text eol=lf
+*.md        text eol=lf
+*.sql       text eol=lf
+*.sh        text eol=lf
+*.env       text eol=lf
+*.env.*     text eol=lf
+*.conf      text eol=lf
+Dockerfile  text eol=lf
+Makefile    text eol=lf
+
+# Binários — não tocar
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
