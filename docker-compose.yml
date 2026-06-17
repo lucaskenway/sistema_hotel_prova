@@ -23,6 +23,26 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Cache (Redis) — terceira camada obrigatória da arquitetura ────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: hotel_redis
+    restart: unless-stopped
+
+    command: redis-server --appendonly yes
+
+    volumes:
+      - redis_data:/data
+
+    networks:
+      - hotel_network
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ── Servidor Node.js (privado — sem acesso direto do host) ──────────────────
   node_web:
     build:
@@ -40,9 +60,12 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-hotel_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hotel_password}
       JWT_SECRET: ${JWT_SECRET:-pms_hotel_secreto_academico_2026}
+      REDIS_URL: redis://redis:6379
 
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
     networks:
@@ -73,3 +96,4 @@ networks:
 
 volumes:
   postgres_data:
+  redis_data:
