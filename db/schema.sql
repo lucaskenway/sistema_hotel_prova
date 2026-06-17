@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS room_categories (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  tenant_id       UUID NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
+  tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   name            TEXT NOT NULL,
   capacity        INTEGER NOT NULL DEFAULT 1,
   price_per_night NUMERIC(10, 2) NOT NULL DEFAULT 0,
