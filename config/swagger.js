@@ -144,6 +144,20 @@ const options = {
                 get:  { tags: ['Quartos'], summary: 'Lista quartos', responses: { 200: { description: 'OK' } } },
                 post: { tags: ['Quartos'], summary: 'Cria quarto', requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Room' } } } }, responses: { 201: { description: 'Criado' } } }
             },
+            '/rooms/available': {
+                get: {
+                    tags: ['Quartos'],
+                    summary: 'Lista quartos disponíveis em um período',
+                    parameters: [
+                        { in: 'query', name: 'check_in',  required: true, schema: { type: 'string', format: 'date', example: '2026-07-01' }, description: 'Data de entrada (YYYY-MM-DD)' },
+                        { in: 'query', name: 'check_out', required: true, schema: { type: 'string', format: 'date', example: '2026-07-05' }, description: 'Data de saída (YYYY-MM-DD)' }
+                    ],
+                    responses: {
+                        200: { description: 'Lista de quartos sem conflito no período' },
+                        400: { description: 'check_in e check_out são obrigatórios ou check_in >= check_out' }
+                    }
+                }
+            },
             '/rooms/{id}': {
                 parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }],
                 get:    { tags: ['Quartos'], summary: 'Busca por ID', responses: { 200: { description: 'OK' } } },
@@ -169,6 +183,18 @@ const options = {
                 get:    { tags: ['Reservas'], summary: 'Busca por ID (inclui quartos N:N)', responses: { 200: { description: 'OK' } } },
                 put:    { tags: ['Reservas'], summary: 'Atualiza reserva', responses: { 200: { description: 'OK' } } },
                 delete: { tags: ['Reservas'], summary: 'Remove reserva (ADMIN)', responses: { 204: { description: 'OK' } } }
+            },
+            '/reservations/{id}/cancel': {
+                parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }],
+                put: {
+                    tags: ['Reservas'],
+                    summary: 'Cancela reserva (apenas PENDING ou CONFIRMED)',
+                    responses: {
+                        200: { description: 'Reserva cancelada — status alterado para CANCELLED' },
+                        422: { description: 'Reserva não pode ser cancelada no status atual (CHECKED_IN, CHECKED_OUT ou já CANCELLED)' },
+                        404: { description: 'Reserva não encontrada' }
+                    }
+                }
             },
             '/reservations/{id}/check-in': {
                 parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }],
