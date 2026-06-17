@@ -1,0 +1,83 @@
+erDiagram
+  TENANTS ||--o{ USERS : "possui"
+  TENANTS ||--o{ ROOM_CATEGORIES : "possui"
+  TENANTS ||--o{ ROOMS : "possui"
+  TENANTS ||--o{ GUESTS : "possui"
+  TENANTS ||--o{ RESERVATIONS : "possui"
+  TENANTS ||--o{ PAYMENTS : "possui"
+  ROOM_CATEGORIES ||--o{ ROOMS : "classifica"
+  GUESTS ||--o{ RESERVATIONS : "faz"
+  ROOMS ||--o{ RESERVATIONS : "quarto_principal"
+  USERS ||--o{ RESERVATIONS : "registra"
+  RESERVATIONS ||--o{ PAYMENTS : "recebe"
+  RESERVATIONS ||--o{ RESERVATION_ROOMS : "agrupa"
+  ROOMS ||--o{ RESERVATION_ROOMS : "compoe"
+
+  TENANTS {
+    UUID id PK
+    TEXT name
+    TEXT subdomain UK
+    TEXT legal_id
+    TEXT status
+  }
+  USERS {
+    UUID id PK
+    UUID tenant_id FK
+    TEXT name
+    TEXT email
+    TEXT password_hash
+    TEXT role
+    TIMESTAMP deleted_at
+  }
+  ROOM_CATEGORIES {
+    UUID id PK
+    UUID tenant_id FK
+    TEXT name
+    INTEGER capacity
+    NUMERIC price_per_night
+    TIMESTAMP deleted_at
+  }
+  ROOMS {
+    UUID id PK
+    UUID tenant_id FK
+    UUID category_id FK
+    TEXT number
+    INTEGER floor
+    TEXT status
+    TIMESTAMP deleted_at
+  }
+  GUESTS {
+    UUID id PK
+    UUID tenant_id FK
+    TEXT full_name
+    TEXT cpf
+    TEXT phone
+    TEXT email
+    TIMESTAMP deleted_at
+  }
+  RESERVATIONS {
+    UUID id PK
+    UUID tenant_id FK
+    UUID guest_id FK
+    UUID room_id FK
+    UUID user_id FK
+    DATE check_in_date
+    DATE check_out_date
+    TEXT status
+    NUMERIC total_amount
+    TIMESTAMP deleted_at
+  }
+  RESERVATION_ROOMS {
+    UUID id PK
+    UUID reservation_id FK
+    UUID room_id FK
+  }
+  PAYMENTS {
+    UUID id PK
+    UUID tenant_id FK
+    UUID reservation_id FK
+    NUMERIC amount
+    TEXT method
+    TIMESTAMP paid_at
+    TIMESTAMP deleted_at
+  }
