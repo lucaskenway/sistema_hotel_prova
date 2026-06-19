@@ -2,7 +2,7 @@
 
 > Projeto Acadêmico (TCC) — Unifaat 2026
 > API REST multi-tenant para gerenciamento hoteleiro.
-> Infraestrutura: **Opção A — Docker/Orquestração Local**
+> Infraestrutura: **Kubernetes (orquestração local via Docker Desktop ou Minikube)**
 
 ---
 
@@ -11,7 +11,7 @@
 - [Parte 1 — Sobre o Projeto](#parte-1--sobre-o-projeto)
 - [Parte 2 — Infraestrutura e Ambiente](#parte-2--infraestrutura-e-ambiente)
   - [Pré-requisitos](#pré-requisitos)
-  - [Gestão de Segredos](#gestão-de-segredos-e-configurações)
+  - [Configuração (ConfigMap e Secret)](#configuração-configmap-e-secret)
   - [Como Subir o Ambiente](#como-subir-o-ambiente-how-to-up)
   - [Detalhamento Técnico da Infraestrutura](#detalhamento-técnico-da-infraestrutura)
 - [Parte 3 — API e Backend](#parte-3--api-e-backend)
@@ -57,12 +57,14 @@ Sistema de gestão hoteleira **SaaS multi-tenant**: múltiplos hotéis utilizam 
 | Hash de senhas | bcryptjs | — |
 | Documentação API | Swagger (OpenAPI 3.0) | — |
 | Proxy Reverso | Nginx | 1.27-alpine |
-| Cache | Redis | 7-alpine |
-| Infraestrutura | Docker + Docker Compose | V2 |
+| Orquestração | Kubernetes | — |
+| Infraestrutura local | Docker Desktop (K8s integrado) ou Minikube | — |
 
-## Infraestrutura — Opção A: Docker/Orquestração Local
+## Infraestrutura — Kubernetes
 
-Este projeto adota a **Opção A** do Guia de Avaliação Técnica de Infraestrutura, com arquitetura de contêineres Docker gerenciada por Docker Compose. A escolha garante portabilidade total do ambiente entre máquinas de desenvolvimento e permite evolução para orquestração em cluster (Docker Swarm) sem alteração do código.
+O ambiente de execução é **Kubernetes**, aplicado via `kustomize` a partir dos manifests em `k8s/`. Cada componente do sistema roda como um recurso K8s dedicado — Deployment, Service, ConfigMap, Secret, PVC — dentro do namespace `hotel-system`.
+
+O `docker-compose.yml` ainda está disponível no repositório exclusivamente como apoio para rodar os **testes automatizados** localmente (os testes precisam de PostgreSQL em `localhost:5432`).
 
 ---
 
@@ -70,48 +72,53 @@ Este projeto adota a **Opção A** do Guia de Avaliação Técnica de Infraestru
 
 ## Pré-requisitos
 
-Ferramentas necessárias no ambiente WSL2/Linux:
-
 | Ferramenta | Para que serve | Como verificar |
 |---|---|---|
-| Docker Desktop | Executar os contêineres | `docker --version` |
-| Docker Compose V2 | Orquestrar os serviços | `docker compose version` |
+| Docker Desktop | Construir a imagem da aplicação | `docker --version` |
+| Kubernetes habilitado | Executar o cluster local | `kubectl version --client` |
+| kubectl | Aplicar e inspecionar os manifests | `kubectl cluster-info` |
 | Git | Clonar o repositório | `git --version` |
 
-> Node.js **não precisa** estar instalado localmente. Toda execução da aplicação ocorre dentro dos contêineres Docker.
+**Duas opções de cluster local:**
+
+- **Docker Desktop** (recomendado no Windows/WSL2): vá em _Settings → Kubernetes → Enable Kubernetes_ e aguarde o cluster subir. Não precisa de configuração extra.
+- **Minikube**: alternativa multiplataforma. Onde o passo a passo difere para Minikube, há uma nota indicando o comando alternativo.
+
+> Node.js **não precisa** estar instalado para rodar a aplicação — apenas para executar os testes automatizados.
 
 ---
 
-## Gestão de Segredos e Configurações
+## Configuração (ConfigMap e Secret)
 
-> **AVISO DE SEGURANÇA:** Nunca commite o arquivo `.env` ou senhas reais no repositório. O `.env` está listado no `.gitignore` e nunca chegará ao GitHub.
+No Kubernetes, variáveis de ambiente são separadas em dois recursos:
 
-O projeto usa variáveis de ambiente para todas as credenciais. Copie o arquivo de exemplo:
+**`k8s/configmap.yaml` — variáveis não sensíveis:**
 
-```bash
-cp .env.example .env
-```
+| Variável | Valor |
+|---|---|
+| `NODE_ENV` | `production` |
+| `NODE_WEB_PORT` | `3000` |
+| `POSTGRES_HOST` | `postgres` (nome do Service interno) |
+| `POSTGRES_PORT` | `5432` |
+| `POSTGRES_DB` | `gestao_hotel` |
+| `POSTGRES_USER` | `hotel_user` |
 
-Variáveis disponíveis:
+**`k8s/secret.yaml` — variáveis sensíveis:**
 
-| Variável | Descrição | Valor padrão (desenvolvimento) |
-|---|---|---|
-| `POSTGRES_DB` | Nome do banco de dados | `gestao_hotel` |
-| `POSTGRES_USER` | Usuário do PostgreSQL | `hotel_user` |
-| `POSTGRES_PASSWORD` | Senha do PostgreSQL | `hotel_password` |
-| `POSTGRES_HOST` | Host do banco (nome do serviço Docker) | `postgres` |
-| `POSTGRES_PORT` | Porta do PostgreSQL | `5432` |
-| `JWT_SECRET` | Chave secreta para assinar tokens JWT | altere em produção |
-| `NODE_WEB_PORT` | Porta interna do servidor Node.js | `3000` |
-| `REDIS_URL` | URL de conexão com o Redis | `redis://redis:6379` |
+| Variável | Valor padrão (acadêmico) |
+|---|---|
+| `POSTGRES_PASSWORD` | `hotel_password` |
+| `JWT_SECRET` | `pms_hotel_secreto_academico_2026` |
 
-Os valores padrão funcionam para desenvolvimento local sem alteração.
+> Em produção, substitua os valores do `secret.yaml` por credenciais reais e **nunca commite o arquivo com senhas reais**. Para este projeto acadêmico os valores estão no repositório para facilitar a avaliação.
+
+Não é necessário criar arquivo `.env` para rodar no Kubernetes — a configuração está inteiramente nos manifests `k8s/`.
 
 ---
 
 ## Como Subir o Ambiente (How to Up)
 
-Siga os passos na ordem. Do zero ao sistema funcionando em menos de 5 minutos.
+Siga os passos na ordem. Do zero ao cluster funcionando em menos de 5 minutos.
 
 ### Passo 1 — Clonar o repositório
 
@@ -120,47 +127,74 @@ git clone https://github.com/gabrielreis354/sistema_hotel_prova.git
 cd sistema_hotel_prova
 ```
 
-### Passo 2 — Configurar variáveis de ambiente
+### Passo 2 — Construir a imagem do backend
+
+O Kubernetes não faz build automático — a imagem precisa existir localmente antes de aplicar os manifests.
 
 ```bash
-cp .env.example .env
+docker build -t sistema-gestao-hotel-backend:latest .
 ```
 
-Os valores padrão já funcionam para desenvolvimento. Em produção, altere `JWT_SECRET` e `POSTGRES_PASSWORD` para valores seguros.
+O `Dockerfile` usa **Multi-stage Build**:
 
-### Passo 3 — Subir todos os contêineres
+```
+Estágio deps   → node:24-alpine  |  npm ci --omit=dev  (só dependências de produção)
+Estágio runner → node:24-alpine  |  copia node_modules + código-fonte
+```
+
+Resultado: imagem enxuta (~120 MB), sem ferramentas de build, rodando como usuário não-root (`USER node`).
+
+> **Se estiver usando Minikube**, a imagem precisa ser carregada no cluster antes de aplicar:
+> ```bash
+> minikube image load sistema-gestao-hotel-backend:latest
+> ```
+> No Docker Desktop isso não é necessário — o cluster usa o mesmo daemon Docker do host.
+
+### Passo 3 — Aplicar todos os manifests com Kustomize
 
 ```bash
-docker compose up -d --build
+kubectl apply -k k8s/
 ```
 
-Este comando executa:
-1. Build da imagem Node.js (multi-stage: deps → runner)
-2. Inicialização dos 4 serviços: `postgres`, `redis`, `node_web`, `nginx`
-3. Aguarda PostgreSQL e Redis ficarem saudáveis antes de liberar o Node.js
+Este único comando cria em sequência:
+1. Namespace `hotel-system`
+2. ConfigMap `hotel-config` (variáveis de ambiente)
+3. Secret `hotel-secret` (credenciais)
+4. PostgreSQL: PVC (1 Gi) + Deployment + Service (ClusterIP)
+5. Backend: Deployment (3 réplicas) + Service (ClusterIP)
+6. Nginx: ConfigMap + Deployment + Service (LoadBalancer, porta 80)
+7. PodDisruptionBudget do backend (mínimo 2 réplicas disponíveis)
+8. NetworkPolicies de isolamento de rede
 
-Verifique se todos os contêineres estão rodando:
+### Passo 4 — Aguardar os Pods ficarem prontos
 
 ```bash
-docker compose ps
+kubectl get pods -n hotel-system -w
 ```
 
-Resultado esperado:
+Aguarde até todos aparecerem como `Running` e `Ready`:
 
 ```
-NAME             STATUS
-hotel_nginx      Up
-hotel_node       Up
-hotel_postgres   Up (healthy)
-hotel_redis      Up (healthy)
+NAME                        READY   STATUS    RESTARTS
+postgres-xxxxxxx            1/1     Running   0
+backend-xxxxxxx             1/1     Running   0
+backend-xxxxxxx             1/1     Running   0
+backend-xxxxxxx             1/1     Running   0
+nginx-xxxxxxx               1/1     Running   0
 ```
 
-### Passo 4 — Executar as migrations
-
-Com os contêineres rodando, crie todas as tabelas no banco:
+Ou espere automaticamente com timeout:
 
 ```bash
-docker compose exec node_web node command.js migrate
+kubectl wait --for=condition=ready pod --all -n hotel-system --timeout=120s
+```
+
+### Passo 5 — Executar as migrations
+
+Com o cluster rodando, crie todas as tabelas no banco:
+
+```bash
+kubectl exec -n hotel-system deploy/backend -- node command.js migrate
 ```
 
 Saída esperada:
@@ -170,18 +204,30 @@ Saída esperada:
 ✅ Migrations executadas com sucesso. Todas as tabelas estão atualizadas.
 ```
 
-### Passo 5 — (Opcional) Popular com dados de exemplo
+### Passo 6 — (Opcional) Popular com dados de exemplo
 
 ```bash
-docker compose exec postgres psql -U hotel_user -d gestao_hotel \
-  -f /dev/stdin < seed/seed_hotels.sql
+kubectl exec -n hotel-system -i deploy/postgres -- \
+  psql -U hotel_user -d gestao_hotel < seed/seed_hotels.sql
 ```
 
-Cria 165 registros distribuídos entre 2 hotéis (Hotel Aurora e Pousada Sol) com quartos, hóspedes, reservas e pagamentos prontos para uso.
+Cria 165 registros distribuídos entre 2 hotéis com quartos, hóspedes, reservas e pagamentos prontos para uso.
 
-### Passo 6 — Verificar o sistema
+### Passo 7 — Verificar o sistema
+
+**No Docker Desktop** (LoadBalancer resolve automaticamente em `localhost`):
 
 ```bash
+curl http://localhost/health
+```
+
+**No Minikube** (precisa de tunnel para LoadBalancer):
+
+```bash
+# Em um terminal separado (mantém o túnel aberto):
+minikube tunnel
+
+# Em outro terminal:
 curl http://localhost/health
 ```
 
@@ -191,88 +237,95 @@ Resposta esperada:
 { "status": "OK", "timestamp": "...", "service": "Sistema de Gestão de Hotel Backend" }
 ```
 
-Acesse a documentação completa da API em: **http://localhost/api-docs**
+Acesse a documentação completa da API: **http://localhost/api-docs**
 
 ---
 
 ## Detalhamento Técnico da Infraestrutura
 
-### Serviços e Contêineres
+### Recursos Kubernetes e suas funções
 
-| Serviço | Imagem | Porta no Host | Porta Interna | Função |
-|---|---|---|---|---|
-| `postgres` | postgres:17 | — (isolado) | 5432 | Banco de dados relacional |
-| `redis` | redis:7-alpine | — (isolado) | 6379 | Cache (3ª camada obrigatória) |
-| `node_web` | build local | — (isolado) | 3000 | API REST Node.js |
-| `nginx` | nginx:1.27-alpine | **80** | 80 | Proxy reverso — único ponto de entrada |
+| Recurso | Nome | Réplicas | Função |
+|---|---|---|---|
+| Namespace | `hotel-system` | — | Isolamento lógico de todos os recursos do projeto |
+| ConfigMap | `hotel-config` | — | Variáveis de ambiente não sensíveis |
+| Secret | `hotel-secret` | — | Credenciais do banco e JWT secret |
+| PVC | `postgres-data` | — | Volume persistente de 1 Gi para o PostgreSQL |
+| Deployment + Service | `postgres` | 1 | Banco de dados (ClusterIP:5432) |
+| Deployment + Service | `backend` | **3** | API REST Node.js (ClusterIP:3000) |
+| Deployment + Service | `nginx` | 1 | Proxy reverso — único ponto de entrada (LoadBalancer:80) |
+| PodDisruptionBudget | `backend-pdb` | — | Garante mínimo de 2 réplicas durante atualizações |
+| NetworkPolicy | `postgres-ingress` | — | Permite conexão ao banco somente do backend |
+| NetworkPolicy | `backend-ingress` | — | Permite conexão ao backend somente do nginx |
 
-### Arquitetura de Rede
-
-```
-Internet / Host (localhost)
-        |
-     porta 80
-        |
-    [ Nginx ]  ←── único serviço exposto ao host
-        |
-    hotel_network (Custom Bridge — isolada)
-        |
-   [ node_web:3000 ]
-        |            |
-[ postgres:5432 ]  [ redis:6379 ]
-```
-
-`node_web`, `postgres` e `redis` **não possuem portas expostas ao host**. O banco de dados é inacessível diretamente pela internet — acessível apenas dentro da rede `hotel_network`.
-
-### Otimização da Imagem Docker
-
-O `Dockerfile` usa **Multi-stage Build** com dois estágios:
+### Arquitetura de rede dentro do cluster
 
 ```
-Estágio deps   → node:24-alpine  |  npm ci --omit=dev  (apenas produção)
-Estágio runner → node:24-alpine  |  copia node_modules e código-fonte
+Externo (localhost:80)
+        |
+   [ nginx Service — LoadBalancer ]
+        |
+   [ nginx Pod ]
+        | (NetworkPolicy: só nginx → backend)
+   [ backend Service — ClusterIP:3000 ]
+        |
+   [ backend Pod ] × 3 réplicas
+        | (NetworkPolicy: só backend → postgres)
+   [ postgres Service — ClusterIP:5432 ]
+        |
+   [ postgres Pod ]
+        |
+   [ PVC postgres-data — 1 Gi ]
 ```
 
-Benefícios:
-- Imagem final **sem ferramentas de build** (npm, compiladores, cache)
-- Node.js 24 Alpine (~50 MB vs ~900 MB do node:24 padrão)
-- Execução como usuário não-root (`USER node`) — sem privilégios de root no contêiner
-- `.dockerignore` exclui: `node_modules`, `tests`, `docs`, `k8s`, `.git`, `.env`, `*.md`
+- **Nginx** é o único componente acessível de fora do cluster (via LoadBalancer)
+- **Backend e PostgreSQL** são `ClusterIP` — invisíveis ao host
+- **NetworkPolicies** garantem que nem nginx nem outros pods possam acessar diretamente o banco
 
-### Persistência de Dados (Named Volumes)
+### Por que 3 réplicas no backend?
 
-| Volume | O que persiste |
-|---|---|
-| `postgres_data` | Banco de dados PostgreSQL completo |
-| `redis_data` | Cache Redis com AOF (append-only file) ativado |
+O backend é **stateless** (não guarda estado entre requisições — toda sessão está no JWT). Isso permite replicação horizontal sem risco de inconsistência. O Kubernetes distribui as requisições entre as 3 réplicas automaticamente via o `backend` Service.
 
-Named Volumes são gerenciados pelo Docker daemon. Os dados **sobrevivem** a `docker compose down` e à remoção de contêineres. Somente `docker compose down -v` apaga os dados.
+O PodDisruptionBudget (`minAvailable: 2`) garante que durante uma atualização ou falha de nó, pelo menos 2 réplicas continuem respondendo — zero downtime.
 
-### Rede e Comunicação (Custom Bridge com DNS Interno)
+### Persistência de dados (PersistentVolumeClaim)
 
-Todos os serviços pertencem à rede `hotel_network` (driver: `bridge`). A comunicação ocorre por **nome de serviço** — nunca por IP estático.
+O PostgreSQL usa um PVC de 1 Gi gerenciado pelo cluster. Os dados **sobrevivem** à remoção e recriação do Pod — o volume só é apagado ao deletar explicitamente o PVC:
 
 ```bash
-# node_web conecta ao banco por nome, não por IP:
-POSTGRES_HOST=postgres        # resolve internamente
-REDIS_URL=redis://redis:6379  # resolve internamente
-
-# Provar a resolução DNS:
-docker compose exec node_web ping -c 2 postgres
-docker compose exec node_web ping -c 2 redis
+kubectl delete pvc postgres-data -n hotel-system
 ```
+
+### Configuração e segredos no Kubernetes
+
+| Tipo | Recurso | O que armazena |
+|---|---|---|
+| ConfigMap | `hotel-config` | Variáveis não sensíveis (host, porta, nome do banco) |
+| Secret | `hotel-secret` | `POSTGRES_PASSWORD` e `JWT_SECRET` |
+
+Os Pods leem essas variáveis via `envFrom` (ConfigMap) e `env.valueFrom.secretKeyRef` (Secret). Nenhuma credencial está hardcoded nas imagens.
+
+### Otimização da imagem Docker (Multi-stage Build)
+
+```
+Estágio deps   → node:24-alpine  |  npm ci --omit=dev
+Estágio runner → node:24-alpine  |  copia node_modules + código-fonte
+                                    USER node (não-root)
+                                    EXPOSE 3000
+```
+
+O `.dockerignore` exclui do build: `node_modules/`, `tests/`, `docs/`, `k8s/`, `.git/`, `.env`, `*.md`.
 
 ### Segurança
 
 | Medida | Implementação |
 |---|---|
-| Credenciais fora do código | Variáveis de ambiente via `.env` — nunca hardcoded |
-| `.env` no `.gitignore` | Senhas nunca chegam ao repositório |
-| Usuário não-root | `USER node` no Dockerfile |
-| Banco isolado | `postgres` sem porta exposta ao host |
-| Cache isolado | `redis` sem porta exposta ao host |
-| JWT rotacionável | `JWT_SECRET` via variável de ambiente |
-| Multi-tenancy | `tenant_id` em todas as tabelas e queries — dados de hotéis nunca se cruzam |
+| Banco inacessível externamente | `postgres` Service é ClusterIP — sem porta no host |
+| Backend inacessível externamente | `backend` Service é ClusterIP |
+| Isolamento via NetworkPolicy | postgres só aceita de backend; backend só aceita de nginx |
+| Credenciais em Secret K8s | Separadas do código e do ConfigMap |
+| Imagem não-root | `USER node` no Dockerfile |
+| Multi-tenancy | `tenant_id` em todas as tabelas e queries |
 
 ---
 
@@ -453,10 +506,21 @@ sistema_gestao_hotel/
 │
 ├── config/swagger.js         # Especificação OpenAPI 3.0
 │
-├── Dockerfile                # Multi-stage build (deps + runner)
-├── docker-compose.yml        # 4 serviços: postgres, redis, node_web, nginx
+├── Dockerfile                # Multi-stage build (deps + runner) — gera a imagem do backend
+├── docker-compose.yml        # Ambiente alternativo — usado apenas para testes automatizados
 ├── .dockerignore             # Exclui arquivos desnecessários do build
-├── .env.example              # Template de variáveis de ambiente (sem valores reais)
+├── .env.example              # Template de variáveis de ambiente (para uso com Docker Compose)
+│
+├── k8s/                      # Manifests Kubernetes (ambiente principal)
+│   ├── kustomization.yaml    #   Ponto de entrada do kustomize (kubectl apply -k k8s/)
+│   ├── namespace.yaml        #   Namespace hotel-system
+│   ├── configmap.yaml        #   Variáveis de ambiente não sensíveis
+│   ├── secret.yaml           #   Credenciais (POSTGRES_PASSWORD, JWT_SECRET)
+│   ├── postgres.yaml         #   PVC + Deployment + Service do PostgreSQL
+│   ├── backend.yaml          #   Deployment (3 réplicas) + Service do Node.js
+│   ├── nginx.yaml            #   ConfigMap nginx + Deployment + Service LoadBalancer
+│   ├── pdb.yaml              #   PodDisruptionBudget (mínimo 2 réplicas do backend)
+│   └── networkpolicy.yaml    #   Políticas de rede (postgres ← backend ← nginx apenas)
 │
 ├── db/schema.sql             # Schema SQL completo — fonte de verdade do banco
 ├── scripts/setup.sql         # DDL de referência comentado (fins acadêmicos)
@@ -567,11 +631,11 @@ As consultas estão organizadas em `queries/`:
 O schema completo está em `db/schema.sql`. Para criar ou atualizar todas as tabelas:
 
 ```bash
-# Via Docker (recomendado — não requer Node.js local)
-docker compose exec node_web node command.js migrate
+# Via Kubernetes (ambiente principal)
+kubectl exec -n hotel-system deploy/backend -- node command.js migrate
 
-# Local (requer Node.js 24)
-node command.js migrate
+# Via Docker Compose (ambiente alternativo, para desenvolvimento local)
+docker compose exec node_web node command.js migrate
 ```
 
 O comando usa `sequelize.sync({ alter: true })` — cria tabelas inexistentes e adiciona colunas novas sem derrubar dados existentes.
@@ -579,7 +643,9 @@ O comando usa `sequelize.sync({ alter: true })` — cria tabelas inexistentes e 
 Para recriar o banco do zero a partir do schema SQL:
 
 ```bash
-docker compose exec postgres psql -U hotel_user -d gestao_hotel -f /dev/stdin < scripts/setup.sql
+# Via Kubernetes
+kubectl exec -n hotel-system -i deploy/postgres -- \
+  psql -U hotel_user -d gestao_hotel < scripts/setup.sql
 ```
 
 ---
@@ -603,6 +669,11 @@ Distribuição de status das reservas (Hotel Aurora): 8 CHECKED_OUT · 5 CONFIRM
 **Executar o seed:**
 
 ```bash
+# Via Kubernetes (ambiente principal)
+kubectl exec -n hotel-system -i deploy/postgres -- \
+  psql -U hotel_user -d gestao_hotel < seed/seed_hotels.sql
+
+# Via Docker Compose (ambiente alternativo)
 docker compose exec postgres psql -U hotel_user -d gestao_hotel \
   -f /dev/stdin < seed/seed_hotels.sql
 ```
@@ -617,15 +688,14 @@ A suite usa **Vitest + Supertest** com PostgreSQL real (banco separado `gestao_h
 
 ### Pré-requisitos para rodar os testes
 
-O PostgreSQL precisa estar acessível em `localhost:5432`. Com o ambiente Docker rodando, exponha a porta temporariamente no `docker-compose.yml`:
+Os testes usam `Supertest` que executa a API em processo, mas precisam de **PostgreSQL real acessível em `localhost:5432`**. Com o ambiente Kubernetes rodando, exponha o banco via port-forward:
 
-```yaml
-postgres:
-  ports:
-    - "5432:5432"
+```bash
+# Abre o túnel postgres → localhost:5432 (mantenha este terminal aberto)
+kubectl port-forward -n hotel-system svc/postgres 5432:5432
 ```
 
-E reinicie o serviço:
+Alternativa com Docker Compose (mais simples para testes):
 
 ```bash
 docker compose up -d postgres
@@ -666,35 +736,42 @@ Test Files  7 passed (7)
 
 # Evidências de Verificação
 
-Comandos para validar o sistema em execução:
+Comandos para validar o sistema em execução no Kubernetes:
 
 ```bash
-# 1. Verificar todos os contêineres rodando e saudáveis
-docker compose ps
+# 1. Listar todos os Pods e confirmar que estão Running e Ready
+kubectl get pods -n hotel-system
 
-# 2. Inspecionar a rede e confirmar que o banco está isolado
-docker inspect hotel_network
+# 2. Listar os Services e confirmar os tipos (ClusterIP vs LoadBalancer)
+kubectl get svc -n hotel-system
 
-# 3. Provar resolução DNS interna (sem IPs estáticos)
-docker compose exec node_web ping -c 2 postgres
-docker compose exec node_web ping -c 2 redis
+# 3. Ver detalhes do Deployment do backend (3 réplicas)
+kubectl describe deployment backend -n hotel-system
 
-# 4. Verificar Named Volumes criados
-docker volume ls | grep sistema_gestao_hotel
+# 4. Confirmar as NetworkPolicies ativas
+kubectl get networkpolicy -n hotel-system
 
-# 5. Testar persistência: reiniciar o postgres e verificar que os dados permanecem
-docker compose restart postgres
+# 5. Verificar o PVC do PostgreSQL (status: Bound)
+kubectl get pvc -n hotel-system
+
+# 6. Testar persistência: deletar e recriar o Pod do postgres
+#    Os dados devem permanecer no PVC
+kubectl delete pod -n hotel-system -l app=postgres
+kubectl wait --for=condition=ready pod -l app=postgres -n hotel-system --timeout=60s
 curl http://localhost/health
 
-# 6. Confirmar que o banco é inacessível diretamente pelo host
-#    (sem port mapping — o comando abaixo deve recusar a conexão)
+# 7. Confirmar que o banco é inacessível diretamente pelo host
+#    (Service é ClusterIP — sem porta exposta. O comando abaixo deve recusar a conexão)
 psql -h localhost -p 5432 -U hotel_user -d gestao_hotel
 
-# 7. Ver logs de todos os serviços
-docker compose logs --tail=20
+# 8. Ver logs do backend (todos os Pods)
+kubectl logs -n hotel-system -l app=backend --tail=20
 
-# 8. Verificar a imagem construída (multi-stage, tamanho reduzido)
-docker images | grep sistema_gestao_hotel
+# 9. Ver logs do Nginx
+kubectl logs -n hotel-system -l app=nginx --tail=20
+
+# 10. Verificar a imagem construída (multi-stage, tamanho reduzido)
+docker images | grep sistema-gestao-hotel-backend
 ```
 
 URL de acesso à aplicação: **http://localhost**
@@ -705,58 +782,74 @@ Health check: **http://localhost/health**
 
 # Troubleshooting
 
-### API retorna "ECONNREFUSED" ou não conecta ao banco
+### Pods ficam em `Pending` ou `CrashLoopBackOff`
 
 ```bash
-# Verificar se o postgres está healthy
-docker compose ps
+# Ver o status detalhado do Pod com falha
+kubectl describe pod -n hotel-system <nome-do-pod>
 
-# Ver logs do postgres
-docker compose logs postgres
-
-# Reiniciar apenas o postgres
-docker compose restart postgres
+# Ver logs do Pod
+kubectl logs -n hotel-system <nome-do-pod>
 ```
+
+Causas comuns:
+- **`ImagePullBackOff`**: a imagem não foi construída ou não está disponível no cluster. Refaça o build:
+  ```bash
+  docker build -t sistema-gestao-hotel-backend:latest .
+  # Se Minikube:
+  minikube image load sistema-gestao-hotel-backend:latest
+  ```
+- **`Pending` sem nó disponível**: cluster sem recursos. Verifique `kubectl describe node`.
 
 ### "relation 'tenants' does not exist"
 
-As migrations não foram executadas após subir os contêineres:
+As migrations não foram executadas após subir o cluster:
 
 ```bash
-docker compose exec node_web node command.js migrate
+kubectl exec -n hotel-system deploy/backend -- node command.js migrate
 ```
 
-### Porta 80 já está em uso
+### Backend não consegue conectar ao PostgreSQL
 
 ```bash
-# Identificar o processo que ocupa a porta
-sudo lsof -i :80
+# Verificar se o Pod do postgres está Ready
+kubectl get pods -n hotel-system -l app=postgres
 
-# Ou alterar a porta do Nginx no docker-compose.yml:
-# ports: "8080:80"
-# Após a alteração, acesse em http://localhost:8080
+# Ver logs do postgres
+kubectl logs -n hotel-system -l app=postgres
+
+# Verificar se o Service existe
+kubectl get svc postgres -n hotel-system
 ```
 
-### "password authentication failed"
+O backend conecta ao PostgreSQL pelo nome de Service `postgres` — resolvido internamente pelo DNS do cluster. Não use IPs fixos.
 
+### http://localhost não responde
+
+**No Docker Desktop:** o Service LoadBalancer resolve em `localhost` automaticamente. Verifique se o Pod do nginx está `Running`:
 ```bash
-# Verificar variáveis configuradas
-cat .env | grep POSTGRES_
-
-# Se necessário, recriar tudo do zero
-docker compose down -v
-docker compose up -d --build
-docker compose exec node_web node command.js migrate
+kubectl get pods -n hotel-system -l app=nginx
 ```
 
-### Contêiner node_web reiniciando em loop
+**No Minikube:** o LoadBalancer precisa de tunnel ativo:
+```bash
+minikube tunnel
+```
+Deixe o comando rodando em um terminal separado.
+
+### "password authentication failed" no PostgreSQL
 
 ```bash
-# Ver a causa do erro
-docker compose logs node_web
+# Ver o conteúdo do Secret (decodificado)
+kubectl get secret hotel-secret -n hotel-system -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d
+```
 
-# Causas comuns: .env ausente, banco ainda iniciando (aguarde o healthcheck)
-docker compose ps  # verificar se postgres está "healthy"
+Se precisar recriar tudo do zero:
+```bash
+kubectl delete -k k8s/
+kubectl apply -k k8s/
+kubectl wait --for=condition=ready pod --all -n hotel-system --timeout=120s
+kubectl exec -n hotel-system deploy/backend -- node command.js migrate
 ```
 
 ---
@@ -764,17 +857,18 @@ docker compose ps  # verificar se postgres está "healthy"
 # Limpeza após Avaliação
 
 ```bash
-# Parar contêineres — dados dos volumes são preservados
-docker compose down
+# Remover todos os recursos do cluster — PVC e dados do banco são preservados
+kubectl delete -k k8s/
 
-# Parar contêineres e remover todos os dados (volumes)
-docker compose down -v
+# Remover tudo incluindo o PVC (apaga os dados do banco permanentemente)
+kubectl delete -k k8s/
+kubectl delete pvc postgres-data -n hotel-system
 ```
 
-> **Atenção:** `docker compose down -v` apaga permanentemente todos os dados do banco (`postgres_data`) e do cache (`redis_data`). Esta operação é irreversível.
+> **Atenção:** deletar o PVC `postgres-data` apaga permanentemente todos os dados do banco PostgreSQL. Esta operação é irreversível.
 
 ---
 
 *Sistema de Gestão de Hotel — TCC Unifaat 2026*
-*Node.js 24 · Express 4 · Sequelize 6 · PostgreSQL 17 · Redis 7 · Docker · Nginx*
+*Node.js 24 · Express 4 · Sequelize 6 · PostgreSQL 17 · Kubernetes · Nginx*
 *Grupo: Gabriel · Sirlande · Weslley*
