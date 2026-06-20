@@ -109,8 +109,8 @@ Esta policy nega todo tráfego por padrão. As NetworkPolicies específicas exis
 
 | Hash | Mensagem |
 |------|----------|
-| *(a preencher após commit)* | `fix(db): remover .env.test do rastreamento git e atualizar .gitignore` |
-| *(a preencher após commit)* | `docs(historico): relatorio seguranca banco 20jun2026 (Sirlande)` |
+| `3b5b36e` | `fix(db): remover .env.test do rastreamento git e atualizar .gitignore` |
+| `6b21010` | `docs(historico): relatorio seguranca banco 20jun2026 (Sirlande)` |
 
 ---
 
