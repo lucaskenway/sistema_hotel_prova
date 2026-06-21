@@ -854,6 +854,52 @@ kubectl exec -n hotel-system deploy/backend -- node command.js migrate
 
 ---
 
+# Pipeline CI/CD
+
+O pipeline `.github/workflows/docker-ecr.yml` automatiza o build e push da imagem Docker. Depende de 3 secrets configurados no GitHub:
+
+| Secret | Descrição |
+|---|---|
+| `AWS_ACCESS_KEY_ID` | Chave de acesso IAM da AWS |
+| `AWS_SECRET_ACCESS_KEY` | Chave secreta IAM da AWS |
+| `AWS_REGION` | Região da AWS (ex: `us-east-1`) |
+
+Configure em: **GitHub → Settings → Secrets and variables → Actions**
+
+---
+
+# Kubernetes
+
+A pasta `k8s/` contém os manifests para executar a mesma arquitetura no Kubernetes:
+
+| Recurso | Função |
+|---|---|
+| `namespace.yaml` | Isola os recursos no namespace `hotel-system` |
+| `configmap.yaml` | Guarda variáveis não sensíveis da aplicação |
+| `secret.yaml` | Guarda senha do banco e segredo JWT |
+| `postgres.yaml` | Cria PostgreSQL com volume persistente e Service interno |
+| `backend.yaml` | Cria 3 réplicas da API Express e Service interno |
+| `nginx.yaml` | Cria Nginx como ponto de entrada HTTP |
+| `kustomization.yaml` | Aplica todos os manifests em conjunto |
+
+Fluxo no cluster:
+
+```
+Cliente → Nginx Service → Backend Service → PostgreSQL Service
+```
+
+Aplicação dos manifests:
+
+```bash
+docker build -t sistema-gestao-hotel-backend:latest .
+kubectl apply -k k8s
+kubectl get pods -n hotel-system
+```
+
+Mais detalhes em `docs/infra/KUBERNETES.md`.
+
+---
+
 # Limpeza após Avaliação
 
 ```bash
