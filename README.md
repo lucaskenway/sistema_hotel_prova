@@ -131,9 +131,22 @@ cd sistema_hotel_prova
 
 O Kubernetes não faz build automático — a imagem precisa existir localmente antes de aplicar os manifests.
 
+**Docker Desktop** (Windows/WSL2 — cluster compartilha o daemon Docker do host):
+
 ```bash
 docker build -t sistema-gestao-hotel-backend:latest .
 ```
+
+**Minikube** — o cluster roda dentro de uma VM/container próprio e **não enxerga** o daemon Docker do host. O build deve ocorrer diretamente dentro do daemon do Minikube:
+
+```bash
+eval $(minikube docker-env)
+docker build -t sistema-gestao-hotel-backend:latest .
+```
+
+> `minikube docker-env` aponta as variáveis de ambiente do Docker para o daemon interno do Minikube. Qualquer imagem construída após esse comando fica disponível para os pods imediatamente — sem necessidade de `minikube image load`.
+>
+> Para restaurar o daemon do host: `eval $(minikube docker-env --unset)`
 
 O `Dockerfile` usa **Multi-stage Build**:
 
@@ -143,12 +156,6 @@ Estágio runner → node:24-alpine  |  copia node_modules + código-fonte
 ```
 
 Resultado: imagem enxuta (~120 MB), sem ferramentas de build, rodando como usuário não-root (`USER node`).
-
-> **Se estiver usando Minikube**, a imagem precisa ser carregada no cluster antes de aplicar:
-> ```bash
-> minikube image load sistema-gestao-hotel-backend:latest
-> ```
-> No Docker Desktop isso não é necessário — o cluster usa o mesmo daemon Docker do host.
 
 ### Passo 3 — Aplicar todos os manifests com Kustomize
 
@@ -160,7 +167,7 @@ Este único comando cria em sequência:
 1. Namespace `hotel-system`
 2. ConfigMap `hotel-config` (variáveis de ambiente)
 3. Secret `hotel-secret` (credenciais)
-4. PostgreSQL: PVC (1 Gi) + Deployment + Service (ClusterIP)
+4. PostgreSQL: PVC (1 Gi) + StatefulSet + Service (ClusterIP)
 5. Backend: Deployment (3 réplicas) + Service (ClusterIP)
 6. Nginx: ConfigMap + Deployment + Service (LoadBalancer, porta 80)
 7. PodDisruptionBudget do backend (mínimo 2 réplicas disponíveis)
@@ -176,7 +183,7 @@ Aguarde até todos aparecerem como `Running` e `Ready`:
 
 ```
 NAME                        READY   STATUS    RESTARTS
-postgres-xxxxxxx            1/1     Running   0
+postgres-0                  1/1     Running   0
 backend-xxxxxxx             1/1     Running   0
 backend-xxxxxxx             1/1     Running   0
 backend-xxxxxxx             1/1     Running   0
@@ -251,7 +258,7 @@ Acesse a documentação completa da API: **http://localhost/api-docs**
 | ConfigMap | `hotel-config` | — | Variáveis de ambiente não sensíveis |
 | Secret | `hotel-secret` | — | Credenciais do banco e JWT secret |
 | PVC | `postgres-data` | — | Volume persistente de 1 Gi para o PostgreSQL |
-| Deployment + Service | `postgres` | 1 | Banco de dados (ClusterIP:5432) |
+| StatefulSet + Service | `postgres` | 1 | Banco de dados (ClusterIP:5432) |
 | Deployment + Service | `backend` | **3** | API REST Node.js (ClusterIP:3000) |
 | Deployment + Service | `nginx` | 1 | Proxy reverso — único ponto de entrada (LoadBalancer:80) |
 | PodDisruptionBudget | `backend-pdb` | — | Garante mínimo de 2 réplicas durante atualizações |

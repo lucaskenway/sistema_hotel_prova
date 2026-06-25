@@ -39,23 +39,22 @@ minikube status
 
 Esperado: `host: Running`, `kubelet: Running`, `apiserver: Running`
 
-### 1.3 Build da imagem do backend
+### 1.3 Build da imagem dentro do daemon do Minikube
 
 Execute na raiz do projeto:
 
 ```bash
+eval $(minikube docker-env)
 docker build -t sistema-gestao-hotel-backend:latest .
 ```
 
 Esperado: `Successfully built ...` e `Successfully tagged sistema-gestao-hotel-backend:latest`
 
-### 1.4 Carregar imagem no Minikube
-
-```bash
-minikube image load sistema-gestao-hotel-backend:latest
-```
-
-> Necessário porque `imagePullPolicy: IfNotPresent` — K8s usa a imagem local do nó.
+> **Por que `eval $(minikube docker-env)`?** O Minikube roda seu próprio daemon Docker interno, isolado do host. Esse comando aponta as variáveis do Docker CLI (`DOCKER_HOST`, `DOCKER_CERT_PATH`, etc.) para esse daemon interno. A imagem construída fica imediatamente disponível para os pods — sem etapa extra de carregamento.
+>
+> `minikube image load` é alternativa disponível, mas notoriamente inconsistente: pode carregar uma camada de cache antiga em vez da imagem recém-construída, resultando em pods rodando a versão errada da imagem silenciosamente.
+>
+> Para restaurar o daemon do host após o build: `eval $(minikube docker-env --unset)`
 
 ### 1.5 Aplicar os manifests
 
