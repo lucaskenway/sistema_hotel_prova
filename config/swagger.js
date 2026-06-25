@@ -121,6 +121,22 @@ const options = {
                     responses: { 200: { description: 'JWT gerado com sucesso' }, 400: { description: 'Campos obrigatórios ausentes' }, 401: { description: 'Credenciais inválidas ou subdomain não encontrado' }, 409: { description: 'E-mail existe em múltiplos hotéis — informe o subdomain para desambiguar' } }
                 }
             },
+            '/login': {
+                post: {
+                    tags: ['Auth'],
+                    summary: 'Autentica usuário e retorna JWT (alias de /auth/login)',
+                    security: [],
+                    requestBody: {
+                        required: true,
+                        content: { 'application/json': { schema: { type: 'object', required: ['email', 'password'], properties: {
+                            email:     { type: 'string', example: 'admin@paraiso.com' },
+                            password:  { type: 'string', example: 'senha123' },
+                            subdomain: { type: 'string', example: 'hotel-paraiso' }
+                        }}}}
+                    },
+                    responses: { 200: { description: 'JWT gerado com sucesso' }, 401: { description: 'Credenciais inválidas' } }
+                }
+            },
             '/users': {
                 get:  { tags: ['Usuários'], summary: 'Lista usuários do tenant', responses: { 200: { description: 'Lista de usuários' } } },
                 post: { tags: ['Usuários'], summary: 'Cria novo usuário', requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/User' } } } }, responses: { 201: { description: 'Usuário criado' } } }
