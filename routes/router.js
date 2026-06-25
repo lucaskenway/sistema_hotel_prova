@@ -3,6 +3,7 @@ import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from '../config/swagger.js';
 import authRouter         from './apis/authRouter.js';
+import LoginController    from '../app/Controllers/AuthApi/LoginController.js';
 import userRouter         from './apis/userRouter.js';
 import roomCategoryRouter from './apis/roomCategoryRouter.js';
 import roomRouter         from './apis/roomRouter.js';
@@ -32,6 +33,9 @@ router.get('/', (request, response) => {
 
 // Documentação Swagger
 router.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Alias em /login — o login canônico está em /auth/login
+router.post('/login', LoginController);
 
 // APIs REST
 router.use('/auth',             authRouter);
