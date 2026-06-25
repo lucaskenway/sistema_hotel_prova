@@ -34,7 +34,7 @@ router.get('/', (request, response) => {
 // Documentação Swagger
 router.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Alias exigido pelo enunciado da prova (também disponível em /auth/login)
+// Alias em /login — o login canônico está em /auth/login
 router.post('/login', LoginController);
 
 // APIs REST
