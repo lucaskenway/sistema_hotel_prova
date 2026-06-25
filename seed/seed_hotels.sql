@@ -24,6 +24,19 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
+-- Garante DEFAULTs nas colunas gerenciadas pelo Sequelize em nível de aplicação.
+-- Necessário para inserção direta via SQL (seed, scripts de setup).
+DO $$
+DECLARE tbl text;
+BEGIN
+  FOREACH tbl IN ARRAY ARRAY['tenants','users','room_categories','rooms','guests','reservations','reservation_rooms','payments']
+  LOOP
+    EXECUTE format('ALTER TABLE %I ALTER COLUMN id SET DEFAULT uuid_generate_v4()', tbl);
+    EXECUTE format('ALTER TABLE %I ALTER COLUMN created_at SET DEFAULT NOW()', tbl);
+    EXECUTE format('ALTER TABLE %I ALTER COLUMN updated_at SET DEFAULT NOW()', tbl);
+  END LOOP;
+END $$;
+
 -- =============================================================================
 -- TENANTS (2 registros)
 -- =============================================================================
