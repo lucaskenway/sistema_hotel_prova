@@ -353,15 +353,9 @@ Contém todas as rotas documentadas com schemas de requisição/resposta, exempl
 ### Passo 1 — Criar um hotel e usuário administrador
 
 ```bash
-POST http://localhost/auth/register
-Content-Type: application/json
-
-{
-  "tenantName": "Hotel Paraíso",
-  "name": "Administrador",
-  "email": "admin@paraiso.com",
-  "password": "senha123"
-}
+curl -s -X POST http://localhost/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"tenantName":"Hotel Paraíso","name":"Administrador","email":"admin@paraiso.com","password":"senha123"}'
 ```
 
 Resposta `201`:
@@ -376,14 +370,9 @@ Resposta `201`:
 ### Passo 2 — Fazer login e obter o token JWT
 
 ```bash
-POST http://localhost/auth/login
-Content-Type: application/json
-
-{
-  "email": "admin@paraiso.com",
-  "password": "senha123",
-  "subdomain": "hotel-paraiso"
-}
+curl -s -X POST http://localhost/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@paraiso.com","password":"senha123","subdomain":"hotel-paraiso"}'
 ```
 
 > O campo `subdomain` é recomendado em ambientes multi-tenant. Se o mesmo e-mail existir em dois hotéis diferentes, o sistema retorna `409` e exige o subdomain para identificar corretamente o hotel.
@@ -401,13 +390,15 @@ O token carrega o payload `{ userId, role, tenantId }` com validade de **8 horas
 
 ### Passo 3 — Usar o token nas requisições
 
-Todas as rotas (exceto `/auth/register` e `/auth/login`) exigem o header:
+Todas as rotas (exceto `/auth/register` e `/auth/login`) exigem o header `Authorization: Bearer <token>`.
 
-```
-Authorization: Bearer <token_aqui>
+```bash
+# Exemplo — listar reservas com o token obtido no Passo 2:
+curl -s http://localhost/reservations \
+  -H "Authorization: Bearer <cole_o_token_aqui>"
 ```
 
-**No Swagger:** clique em **Authorize** (canto superior direito) → cole o token → confirme. Todas as requisições subsequentes serão autenticadas automaticamente.
+**No Swagger** (`http://localhost/api-docs`): clique em **Authorize** (canto superior direito) → cole o token → confirme. Todas as requisições subsequentes serão autenticadas automaticamente.
 
 **No Insomnia/Postman:** adicione o header `Authorization: Bearer <token>` em cada requisição ou configure-o como variável de ambiente no workspace.
 
